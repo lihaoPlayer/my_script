@@ -1,0 +1,4 @@
+- name: exec network throttle
+  script: "network-throttle.sh '{{ start_time }}' '{{ end_time }}' {{ bandwidth | default('') }}"
+  register: neth_mess
+  become: yes

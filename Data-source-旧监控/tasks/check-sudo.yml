@@ -1,0 +1,5 @@
+#检测异常无密码sudo用户
+- name: check sudo user
+  script: "check_sudo.py"
+  args: 
+    executable: python2

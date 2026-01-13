@@ -1,0 +1,18 @@
+- hosts: "{{ hosts }}"
+  gather_facts: no
+
+  tasks:
+    - name: add script/*.sh
+      script: "script/{{ item }}"
+      loop:
+        - bandwidth-up-jitter.sh
+        - business-type.sh
+        - disk.sh
+        - k-blocked.sh
+        - ksp2p_gap.sh
+        - mount.sh
+        - pppoe-status.sh
+        - ppp-speed.sh
+        - sensors-exporter.sh
+        - syslog-error-rate.sh
+      ignore_errors: yes

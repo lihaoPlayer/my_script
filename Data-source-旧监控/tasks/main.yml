@@ -1,0 +1,21 @@
+  #采集低跑量机器利用率
+- name: add  ppp-speed
+  script: "ppp-speed.sh"
+#采集磁盘是否掉盘
+- name: add  disk-monitor
+  script: "disk.sh"
+#采集磁盘是否掉挂载  
+- name: add  mount-monitor
+  script: "mount.sh"
+  #采集业务部署程序
+- name: add  business-type
+  script: "business-type.sh"
+  #采集线路实时状态
+- name: add  pppoe-status
+  script: "pppoe-status.sh"
+  #采集网卡状态
+- name: add  nic_dropped
+  script: "nic_dropped.sh"
+    #定时探测frp状态
+- name: add  frp_status
+  script: "mxfrp-check.sh"

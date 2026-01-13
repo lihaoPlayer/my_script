@@ -1,0 +1,21 @@
+- name: Copy rootpasswd.sh script to remote machine
+  copy:
+    src: rootpasswd.sh
+    dest: /tmp/rootpasswd.sh
+    mode: '0755'
+
+- name: Execute rootpasswd.sh script (load env)
+  shell: bash /tmp/rootpasswd.sh
+  register: script_result
+
+- name: Display script execution result
+  debug:
+    var: script_result
+
+- name: Schedule script to run daily at 12:30 PM
+  cron:
+    name: "Execute rootpasswd.sh daily at 12:30"
+    minute: "30"
+    hour: "12"
+    job: "bash /tmp/rootpasswd.sh"
+    user: root
