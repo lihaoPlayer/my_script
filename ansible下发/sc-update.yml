@@ -1,0 +1,8 @@
+- hosts: "{{ hosts }}"
+  gather_facts: no
+
+  tasks:
+    - name: add script/install-sc.py
+      script: "script/{{ item }}"
+      loop:
+        - install-sc.py

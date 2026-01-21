@@ -16,11 +16,14 @@ sys.setdefaultencoding('utf-8')
 TARGET_KERNEL = "5.4.119-19-0006"
 CONTAINER_PREFIX = "k8s_pcdn-lego-server"
 LOG_ABSOLUTE_PATH = "/lego/log/lego_server.ERROR"
-TARGET_ERROR = "No such file or directory"
-PROMPT_MSG = "【提示】检测到 '{}' 错误，请执行t2重启不跑命令！".format(TARGET_ERROR)
+# 新增第二种错误类型
+TARGET_ERRORS = {
+    "No such file or directory": "数据盘异常，请检查！若无异常，请重启T2程序",
+    "udp bind Err. bind_ip": "设备无法出网，请重启边缘机器"
+}
+# 恢复被误删除的挂载点变量
 MANDATORY_MOUNT1 = "/pcdn_data/pcdn_index_data"
 MANDATORY_MOUNT2_PATTERN = "/pcdn_data/storage*_ssd"
-
 # ========== 颜色输出配置 ==========
 COLOR_GREEN = "\033[32m"
 COLOR_RED = "\033[31m"
@@ -34,8 +37,9 @@ COLOR_RESET = "\033[0m"
 # ========== 硬编码的配置 ==========
 # 从本地config.json文件中复制的内容
 CONFIG = {
-  "AUTH_TOKEN_MANXING": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJzeXNfdXNlcjoxOTYwMjIyMzU3MzM2NDYxMzE0Iiwicm5TdHIiOiI2VUhsbmN3MFE3b0Z0Wjh3U29DNnAwWU9jQWkxQ2FoYSIsImNsaWVudGlkIjoiZTVjZDdlNDg5MWJmOTVkMWQxOTIwNmNlMjRhN2IzMmUiLCJ0ZW5hbnRJZCI6IjAwMDAwMCIsInVzZXJJZCI6MTk2MDIyMjM1NzMzNjQ2MTMxNCwidXNlck5hbWUiOiJsaWhhbyIsImRlcHRJZCI6MTAyLCJkZXB0TmFtZSI6Iui_kOe7tOeglOWPkemDqCJ9.yfom2Kd3W7bWP1zjLgTAZTinoaJ0eAZMFT_Pm2wjEJU",
-  "HEZUOKAIFANG_COOKIE": "fog-login-type=normal; username=manxingyun; oversea=1; session=eyJfcGVybWFuZW50Ijp0cnVlLCJwcm92aWRlcl9pZCI6MTM0LCJwcm92aWRlcl9uYW1lIjoi5ryr5pif5LqRIn0.aUYyFQ.Rah_zu_QdNhWCmF6YbtmS4se3mc; sidebarStatus=0"
+  "AUTH_TOKEN_MANXING":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJzeXNfdXNlcjoxOTYwMjIyMzU3MzM2NDYxMzE0Iiwicm5TdHIiOiJjYkRmaGJhbU9nSFdHa2hjSDk0N3FLakdtUG1MWmdhNyIsImNsaWVudGlkIjoiZTVjZDdlNDg5MWJmOTVkMWQxOTIwNmNlMjRhN2IzMmUiLCJ0ZW5hbnRJZCI6IjAwMDAwMCIsInVzZXJJZCI6MTk2MDIyMjM1NzMzNjQ2MTMxNCwidXNlck5hbWUiOiJsaWhhbyIsImRlcHRJZCI6MTAyLCJkZXB0TmFtZSI6Iui_kOe7tOeglOWPkemDqCJ9.bZoTalBiUKNUHlUkQSAt2OKD9MMD2xSWyc9ozerFpyQ",
+  "HEZUOKAIFANG_COOKIE":"username=manxingyun; fog-login-type=normal; oversea=1; session=eyJfcGVybWFuZW50Ijp0cnVlLCJwcm92aWRlcl9pZCI6MTM0LCJwcm92aWRlcl9uYW1lIjoi5ryr5pif5LqRIn0.aWmwyg.qF6XPzUm9aCEmQxIojaYKjqhFSM"
+
 }
 
 AUTH_TOKEN_MANXING = CONFIG.get("AUTH_TOKEN_MANXING", "")
@@ -257,13 +261,17 @@ def check_T2_deliver_record():
                     log_success("T2平台交付记录检查通过")
                     return True
                 else:
+                    # 新增提示信息：请拿到mac在开放平台查询交付详情，若未交付，请按T2交付流程处理
                     log_error("T2平台交付状态异常: {}".format(deliver_status))
+                    log_error("请拿到MAC在开放平台查询交付详情，若未交付，请按T2交付流程处理！")
                     return False
         else:
             log_error("未找到T2交付记录")
+            log_error("请拿到MAC在开放平台查询交付详情，若未交付，请按T2交付流程处理！")
             return False
     else:
         log_error("T2交付日志查询失败或返回数据格式不正确")
+        log_error("请拿到MAC在开放平台查询交付详情，若未交付，请按T2交付流程处理！")
         return False
 
 def get_T2_install_log():
@@ -344,12 +352,19 @@ def check_container_log():
         log_error("读取容器日志失败！容器ID：{}，错误信息：{}".format(container_id, log_err))
         return False
 
-    if TARGET_ERROR in log_content:
-        print "\n" + COLOR_RED + COLOR_BOLD + PROMPT_MSG + COLOR_RESET
-        return False
-    else:
-        log_success("容器日志正常，未检测到 '{}' 错误！".format(TARGET_ERROR))
+    # 遍历所有目标错误类型，匹配日志并输出对应提示（按需求两种错误互斥）
+    error_found = False
+    for error_key, prompt_msg in TARGET_ERRORS.items():
+        if error_key in log_content:
+            print "\n" + COLOR_RED + COLOR_BOLD + "【提示】检测到 '{}' 错误，{}！".format(error_key, prompt_msg) + COLOR_RESET
+            error_found = True
+            break  # 找到一种错误即退出，符合"只会出现单独一种"的需求
+    
+    if not error_found:
+        log_success("容器日志正常，未检测到 {} 错误！".format("、".join(TARGET_ERRORS.keys())))
         return True
+    else:
+        return False
 
 # ========== T2业务质量检查函数 ==========
 def get_local_mac_addresses():
